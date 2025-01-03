@@ -3,6 +3,26 @@
   "git-deps": [],
   "mvn-deps": [
     {
+      "mvn-path": "borkdude/edamame/1.4.27/edamame-1.4.27.jar",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-GQu4vUDD+pKDFTnyDgH9AzZq52oi5/5zhmyJfcr9CcY="
+    },
+    {
+      "mvn-path": "borkdude/edamame/1.4.27/edamame-1.4.27.pom",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-mgeghwB5lTpqmBrPq/4AwVK9mxHXK7mhG7KO+tUsxhk="
+    },
+    {
+      "mvn-path": "borkdude/sci.impl.reflector/0.0.3/sci.impl.reflector-0.0.3.jar",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-cs76xn15/PJfKAvAXCjii21wYtoRl59OPCr00TvC0Fw="
+    },
+    {
+      "mvn-path": "borkdude/sci.impl.reflector/0.0.3/sci.impl.reflector-0.0.3.pom",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-BgheqqI9xCa0v1nkO9XV5RoE5YV7zLyo68lVu6n+qWI="
+    },
+    {
       "mvn-path": "cider/cider-nrepl/0.42.1/cider-nrepl-0.42.1.jar",
       "mvn-repo": "https://repo.clojars.org/",
       "hash": "sha256-qzqxLsIMCYqUwr2iMrjI40cS4n/g9SUsb/fRW2C0cEA="
@@ -411,6 +431,26 @@
       "mvn-path": "nrepl/nrepl/1.0.0/nrepl-1.0.0.pom",
       "mvn-repo": "https://repo.clojars.org/",
       "hash": "sha256-dHN5LZGfjodYUES5nySqLqFVNCBgRI2opHhGvkXz2nI="
+    },
+    {
+      "mvn-path": "org/babashka/sci.impl.types/0.0.2/sci.impl.types-0.0.2.jar",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-hvxzjeIOkzC3RxlYriKGp9m33j18ab44u3ayHALGnF8="
+    },
+    {
+      "mvn-path": "org/babashka/sci.impl.types/0.0.2/sci.impl.types-0.0.2.pom",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-G2nywdVJ8si0e2uT3KcQPW/sQFBryQvVqXV1zWpEeh4="
+    },
+    {
+      "mvn-path": "org/babashka/sci/0.9.44/sci-0.9.44.jar",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-CbdZ8S6CWWnJ8hUa7j46pa0afjPn+RH5DQZj317GMfU="
+    },
+    {
+      "mvn-path": "org/babashka/sci/0.9.44/sci-0.9.44.pom",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-qPPM23qzySAeS5K73ke32ZYoGrlFzvwkN0droceQHaU="
     },
     {
       "mvn-path": "org/clojure/clojure/1.10.3/clojure-1.10.3.jar",

@@ -1,7 +1,8 @@
 {:paths ["src"]
  :deps {org.clojure/clojure                  {:mvn/version "1.12.0"}
-        com.github.moaxcp.x11/x11-client     {:mvn/version "0.16.0"}
-        org.clojure/core.async               {:mvn/version "1.7.701"}}
+        org.clojure/core.async               {:mvn/version "1.7.701"}
+        org.babashka/sci                     {:mvn/version "0.9.44"}
+        com.github.moaxcp.x11/x11-client     {:mvn/version "0.16.0"}}
 
  :aliases {:repl/conjure
            {:extra-deps {org.clojure/tools.namespace {:mvn/version "1.5.0"}
