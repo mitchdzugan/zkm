@@ -5,20 +5,20 @@
   inputs.zn-nix.url = "github:mitchdzugan/zn.nix";
   inputs.zn-nix.inputs.nixpkgs.follows = "nixpkgs";
   inputs.zkg.url = "github:mitchdzugan/zkg";
-  inputs.ztr.url = "github:mitchdzugan/ztr-clj";
-  outputs = { self, nixpkgs, zn-nix, flake-utils, zkg, zlr, ... }:
+  inputs.ztr.url = "path:/home/dz/Projects/ztr-clj";
+  outputs = { self, nixpkgs, zn-nix, flake-utils, zkg, ztr, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         zn = zn-nix.mk-zn system;
-        zkg-bin = "${zkg.packages.${system}.default}/bin/zkg";
-        ztr-bin = "${ztr.packages.${system}.default}/bin/ztr";
+        zkg-pkg = zkg.packages.${system}.default;
+        ztr-pkg = ztr.packages.${system}.default;
       in rec {
         packages.default = packages.zkm;
-        packages.zkm = zn.writeBbScriptBin' "zkm" [zkg-x11 zkg-wlr] ''
-          (def zkg-bin "${zkg-bin}")
-          (def ztr-bin "${ztr-bin}")
-          ${builtins.readFile ./zkg.clj}
+        packages.zkm = zn.writeBbScriptBin' "zkm" [zkg-pkg ztr-pkg] ''
+          (def zkg-bin "${zkg-pkg}/bin/zkg")
+          (def ztr-bin "${ztr-pkg}/bin/ztr")
+          ${builtins.readFile ./zkm.clj}
         '';
     });
 }
