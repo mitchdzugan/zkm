@@ -506,11 +506,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1735471104,
-        "narHash": "sha256-0q9NGQySwDQc7RhAV2ukfnu7Gxa5/ybJ2ANT8DQrQrs=",
+        "lastModified": 1735834308,
+        "narHash": "sha256-dklw3AXr3OGO4/XT1Tu3Xz9n/we8GctZZ75ZWVqAVhk=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "88195a94f390381c6afcdaa933c2f6ff93959cb4",
+        "rev": "6df24922a1400241dae323af55f30e4318a6ca65",
         "type": "github"
       },
       "original": {
@@ -947,8 +947,8 @@
         "zn-nix": "zn-nix_3"
       },
       "locked": {
-        "lastModified": 1735916356,
-        "narHash": "sha256-2MZ4W9eF9Vr3Izanh/7xYROBdWz8OVvN3bVLe9anQF0=",
+        "lastModified": 1735920593,
+        "narHash": "sha256-I8F4ak7qS4YUdgHBBBdOQcXjDb/JFHv2q4iRod8dzxA=",
         "path": "/home/dz/Projects/ztr-clj",
         "type": "path"
       },

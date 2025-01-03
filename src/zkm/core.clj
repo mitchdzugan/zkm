@@ -1,4 +1,6 @@
-(require '[clojure.string :as str])
+(ns zkm.core
+ (:require [clojure.string :as str])
+ (:gen-class))
 
 (defmacro Sub [& _] {:todo :impl})
 (defmacro Cmd [& _] {:todo :impl})
@@ -9,7 +11,8 @@
   (let [file-content (try (slurp filename) (catch Exception _ "(-> nil)"))
         code (if-not (str/starts-with? file-content "#!") file-content
                (->> file-content str/split-lines (drop 1) (str/join \newline)))]
-    (println (eval (read-string (str "(do " code ")"))))))
+    (println (eval (read-string (str "(do (in-ns 'zkm.core) " code ")"))))))
 
-(doseq [in-file *command-line-args*]
-  (eval-file in-file))
+(defn -main [& args]
+  (doseq [in-file args]
+    (eval-file in-file)))
