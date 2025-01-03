@@ -20,7 +20,10 @@
           main-ns = "zkm.core";
           builder-extra-inputs = [zkg-pkg ztr-pkg];
           builder-preBuild = with pkgs; ''
-            # TODO overwite src/zkm/bins.clj using nix pkg paths
+            l1='(ns zkm.bins)'
+            l2='(def zkg "/${zkg-pkg}/bin/zkg")'
+            l3='(def ztr "/${ztr-pkg}/bin/ztr")'
+            { echo "$l1"; echo "$l2"; echo "$l3"; } > src/zkm/bins.clj
           '';
         };
         buildZkmApp = extraConfig: zn.mkCljApp {

@@ -1,10 +1,34 @@
 (ns zkm.core
  (:require [clojure.string :as str]
-           [sci.core :as sci])
+           [clojure.core.async :refer [go <! >! >!! <!! chan]]
+           [clojure.java.io :as io]
+           [sci.core :as sci]
+           [babashka.process :as p :refer [process destroy-tree]]
+           [cheshire.core :as json]
+           [zkm.bins :as bins])
  (:gen-class))
 
-(def st (atom {:next-menu-id 2
-               :curr-id 1}))
+(def theme
+  {:bg 0xdd191724
+   :bg-full 0xff191724
+   :fg 0xffe0def4
+   :fg-alt 0xffe0def4
+   :bg-alt 0xff403d52
+   :black 0xff2623aa
+   :grey 0xff6e6a86
+   :red 0xffeb6f92
+   :green 0xff31748f
+   :yellow 0xfff6c177
+   :blue 0xff9ccfd8
+   :magenta 0xffc4a7e7
+   :cyan 0xffebbcba})
+
+(def magenta (:magenta theme))
+(def grey (:grey theme))
+
+(def root-id 1)
+
+(def st (atom {:next-menu-id (inc root-id) :curr-id root-id}))
 
 (defn curr-menu [& args] (let [{:keys [menus curr-id]} (or (first args) @st)]
                      (get menus curr-id)))
@@ -65,6 +89,75 @@
                                  'Sub Sub}})
     (println @st)))
 
+(def log-chan (chan))
+
+(defn log [& args] (go (>! log-chan args)))
+
+(defn to-zkg-sym [el]
+  (cond
+    (vector? el) (str "(" (name (first el)) " " (str/join " " (map to-zkg-sym (last el))) ")")
+    (keyword? el) (str ":" (name el))
+    :else (json/generate-string el)))
+
+(defn Cols [& args] [:Cols args])
+(defn Rows [& args] [:Rows args])
+(defn Mkup [& args] [:Mkup args])
+
+(def ^:dynamic *sys* {})
+
+(defn -menus [] (:menus *sys*))
+(defn -active-id [] (:active-id *sys*))
+(defn -menu ([id] (get (-menus) id)) ([] (get (-menus) (-active-id))))
+(defn -root? [] (= root-id (-active-id)))
+
+(defn render-title []
+  (->> (loop [active? true
+              curr '()
+              {:keys [title parent-id]} (-menu)]
+         (let [fs (if active? :bold :normal)
+               fg (if active? magenta grey)
+               next (conj curr (Mkup :font-style fs :fg fg title))]
+           (if-let [parent (-menu parent-id)] (recur false next parent) next)))
+       (apply Mkup)))
+
+(defn render []
+  (Rows :fg (:fg theme)
+    (Mkup :fill :center (render-title))
+    "sadfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"))
+
+(defn handle [sys e]
+  (case (:etype e)
+    :kill nil
+    sys))
+
 (defn -main [& args]
-  (doseq [in-file args]
-    (eval-file in-file)))
+  (go (while true (apply println (<! log-chan))))
+  (let [event-chan (chan)
+        done-chan (chan)]
+    (go (let [zkg-proc (process bins/zkg)]
+          (go (with-open [rdr (io/reader (:out zkg-proc))]
+                (binding [*in* rdr]
+                  (loop []
+                    (when-let [l (try (read-line) (catch Exception _ false))]
+                      (let [[ks' etype' mods'] (str/split l #" ")
+                            ks (sci/eval-string ks')
+                            etype (sci/eval-string (str ":" etype'))
+                            mods (sci/eval-string mods')]
+                        (>! event-chan {:ks ks :etype etype :mods mods}))
+                      (recur))))))
+          (go (let [data (try (deref zkg-proc) (catch Exception e {:err e}))]
+                (>! event-chan (merge data {:etype :kill}))))
+          (<! done-chan)
+          (destroy-tree zkg-proc)))
+    (doseq [in-file args] (eval-file in-file))
+    (println "preprocessing done. entering event loop")
+    (let [ztr-proc (process bins/ztr)
+          ztr-in (io/writer (:in ztr-proc))]
+      (binding [*out* ztr-in]
+        (loop [sys {:menus (:menus @st) :active-id root-id}]
+          (let [el (binding [*sys* sys] (render))]
+            (println (str "(Render " (to-zkg-sym el) ")"))
+            (when-let [next-sys (handle sys (<!! event-chan))]
+              (recur next-sys)))))
+      (destroy-tree ztr-proc)
+      (>!! done-chan true))))
