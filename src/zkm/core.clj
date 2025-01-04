@@ -9,22 +9,27 @@
  (:gen-class))
 
 (def theme
-  {:bg 0xdd191724
-   :bg-full 0xff191724
-   :fg 0xffe0def4
-   :fg-alt 0xffe0def4
-   :bg-alt 0xff403d52
-   :black 0xff2623aa
-   :grey 0xff6e6a86
-   :red 0xffeb6f92
-   :green 0xff31748f
-   :yellow 0xfff6c177
-   :blue 0xff9ccfd8
-   :magenta 0xffc4a7e7
-   :cyan 0xffebbcba})
+  {:bg          0xdd191724
+   :bg-full     0xff191724
+   :fg          0xffe0def4
+   :fg-alt      0xffe0def4
+   :bg-alt      0xff403d52
+   :black       0xff2623aa
+   :grey        0xff6e6a86
+   :grey-dim    0xaa6e6a86
+   :red         0xffeb6f92
+   :green       0xff31748f
+   :yellow      0xfff6c177
+   :blue        0xff9ccfd8
+   :magenta     0xffc4a7e7
+   :cyan-dim    0xccebbcba
+   :cyan        0xffebbcba})
 
 (def magenta (:magenta theme))
 (def grey (:grey theme))
+(def grey-dim (:grey-dim theme))
+(def cyan (:cyan theme))
+(def cyan-dim (:cyan-dim theme))
 
 (def root-id 1)
 
@@ -102,6 +107,7 @@
 (defn Cols [& args] [:Cols args])
 (defn Rows [& args] [:Rows args])
 (defn Mkup [& args] [:Mkup args])
+(defn Hr [& args] [:Hr args])
 
 (def ^:dynamic *sys* {})
 
@@ -120,10 +126,25 @@
            (if-let [parent (-menu parent-id)] (recur false next parent) next)))
        (apply Mkup)))
 
+(defn render-cols []
+  (let [{:keys [entries cols]} (-menu)]
+    (loop [cols []
+           i 0
+           [e & erest :as eall]  entries
+           [nextc & crest :as call] cols]))
+  [(Rows :fill-contents :end "a" "bbb" "c")
+   (Rows :fill-contents :start "1" "222")])
+
 (defn render []
   (Rows :fg (:fg theme)
     (Mkup :fill :center (render-title))
-    "sadfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"))
+    (Hr :fg grey-dim)
+    (apply Cols :fill :around :fill-contents :end (render-cols))
+    (Hr :fg grey-dim)
+    (Cols :fill :between
+          (Mkup (Mkup :fg cyan-dim "Esc") " to quit ")
+          (Mkup "active")
+          "            ")))
 
 (defn handle [sys e]
   (case (:etype e)

@@ -1,21 +1,21 @@
-#!/usr/bin/env -S zkm
+#!/usr/bin/env zkm
 
 (Title "dz system")
 (doseq [i (range 1 11)]
   (Cmd (mod i 10) ["go to workspace" i] ["bspwm-move-to-desktop.js" i]))
 (Col)
 (Sub :m "music & sound"
-   (Cmd :left "previous song" "prev.py")
-   (Cmd :right "next song" "next.py")
-   (Cmd :p "toggle pause" "pause.py")
-   (Cmd :. "set [nowplaying] playlist" "setPlaylist.py")
-   (Cmd :comma "add playlist to [nowplaying]" "addPlaylist.py")
-   (Cmd :slash "jump to song in [nowplaying]" "findInQueue.py")
-   (Cmd :s "shuffle [nowplaying]" "shuffle.py")
-   (Col)
-   (Cmd :up "volume up [5%]" "volumeUp")
-   (Cmd :down "volume down [5%]" "volumeDown")
-   (Cmd :m "toggle mute" "volumeToggleMute"))
+  (Cmd :left "previous song" "prev.py")
+  (Cmd :right "next song" "next.py")
+  (Cmd :p "toggle pause" "pause.py")
+  (Cmd :. "set [nowplaying] playlist" "setPlaylist.py")
+  (Cmd :comma "add playlist to [nowplaying]" "addPlaylist.py")
+  (Cmd :slash "jump to song in [nowplaying]" "findInQueue.py")
+  (Cmd :s "shuffle [nowplaying]" "shuffle.py")
+  (Col)
+  (Cmd :up "volume up [5%]" "volumeUp")
+  (Cmd :down "volume down [5%]" "volumeDown")
+  (Cmd :m "toggle mute" "volumeToggleMute"))
 (Cmd :v "open nvim project in kitty" "nvimProject -m k")
 (Cmd :s:V "open nvim project in preferred GUI" "nvimProject -m g")
 (Cmd :t "open today's TODO list" "glrnvim -c TodoOpenToday")
