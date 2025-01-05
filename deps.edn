@@ -4,7 +4,10 @@
         org.babashka/sci                     {:mvn/version "0.9.44"}
         babashka/process                     {:mvn/version "0.5.22"}
         cheshire/cheshire                    {:mvn/version "5.13.0"}
-        com.github.moaxcp.x11/x11-client     {:mvn/version "0.16.0"}}
+        net.java.dev.jna/jna                 {:mvn/version "5.16.0"}
+        net.java.dev.jna/jna-jpms            {:mvn/version "5.16.0"}
+        net.java.dev.jna/jna-platform        {:mvn/version "5.16.0"}
+        net.java.dev.jna/jna-platform-jpms   {:mvn/version "5.16.0"}}
 
  :aliases {:repl/conjure
            {:extra-deps {org.clojure/tools.namespace {:mvn/version "1.5.0"}

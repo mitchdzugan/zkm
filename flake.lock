@@ -947,8 +947,8 @@
         "zn-nix": "zn-nix_3"
       },
       "locked": {
-        "lastModified": 1735920593,
-        "narHash": "sha256-I8F4ak7qS4YUdgHBBBdOQcXjDb/JFHv2q4iRod8dzxA=",
+        "lastModified": 1736024768,
+        "narHash": "sha256-/cnwJ4pV3cL5pjNVdC/lV6NeT7KXfB5seDdLYJegQcQ=",
         "path": "/home/dz/Projects/ztr-clj",
         "type": "path"
       },

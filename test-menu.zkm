@@ -2,7 +2,14 @@
 
 (Title "dz system")
 (doseq [i (range 1 11)]
-  (Cmd (mod i 10) ["go to workspace" i] ["bspwm-move-to-desktop.js" i]))
+  (Cmd (mod i 10)
+       ["go to workspace" i]
+       ["bspwm-focus-desktop.js" i]))
+(Col)
+(doseq [i (range 1 11)]
+  (Cmd ["s" (mod i 10)]
+       ["move window to workspace" i]
+       ["bspwm-move-to-desktop.js" i]))
 (Col)
 (Sub :m "music & sound"
   (Cmd :left "previous song" "prev.py")

@@ -40,6 +40,8 @@
             "--native-image-info"
             "-march=compatibility"
             "-H:+JNI"
+            "-H:JNIConfigurationFiles=${./.}/.graal-support/jni.json"
+            "-H:ResourceConfigurationFiles=${./.}/.graal-support/resources.json"
             "-H:+ReportExceptionStackTraces"
             "--report-unsupported-elements-at-runtime"
             "--verbose"
@@ -47,19 +49,20 @@
             "-H:DashboardDump=target/dashboard-dump"
           ];
         };
-        packages.build-uberjar = buildZkmApp {};
+        packages.uberjar = buildZkmApp {};
         packages.trace-run = zn.uuFlakeWrap (zn.writeBashScriptBin'
           "trace-run"
-          ([ zkg-pkg ztr-pkg packages.build-uberjar pkgs.graalvm-ce ])
+          [ zkg-pkg ztr-pkg packages.uberjar pkgs.graalvm-ce pkgs.xorg.libX11 ]
           ''
+            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
             gvmh="$GRAALVM_HOME"
             if [ ! -f "$gmvh/bin/java" ]; then
               gmvh="${pkgs.graalvm-ce}"
             fi
-            jar_path=$(cat "${packages.build-uberjar}/nix-support/jar-path")
+            jar_path=$(cat "${packages.uberjar}/nix-support/jar-path")
             $gmvh/bin/java \
               -agentlib:native-image-agent=config-merge-dir=./.graal-support \
-              -jar $jar_path
+              -jar $jar_path "$@"
           ''
         );
         packages.trace-normalize = zn.uuFlakeWrap (zn.writeBbScriptBin

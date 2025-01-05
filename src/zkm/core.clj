@@ -6,37 +6,37 @@
            [babashka.process :as p :refer [process destroy-tree]]
            [cheshire.core :as json]
            [zkm.bins :as bins])
+ (:import (com.sun.jna.platform.unix X11))
  (:gen-class))
 
 (def theme
-  {:bg          0xdd191724
-   :bg-full     0xff191724
-   :fg          0xffe0def4
-   :fg-alt      0xffe0def4
-   :bg-alt      0xff403d52
-   :black       0xff2623aa
-   :grey        0xff6e6a86
-   :grey-dim    0xaa6e6a86
-   :red         0xffeb6f92
-   :green       0xff31748f
-   :yellow      0xfff6c177
-   :blue        0xff9ccfd8
-   :magenta     0xffc4a7e7
-   :cyan-dim    0xccebbcba
-   :cyan        0xffebbcba})
+  {:bg          0xdd191724 :bg-full     0xff191724 :fg          0xffe0def4
+   :fg-alt      0xffe0def4 :bg-alt      0xff403d52 :black       0xff2623aa
+   :grey        0xff6e6a86 :grey-dim    0xaa6e6a86 :red         0xffeb6f92
+   :green       0xff31748f :yellow      0xfff6c177 :yellow-dim  0xccf6c177
+   :blue        0xff9ccfd8 :blue-dim    0xcc9ccfd8 :magenta     0xffc4a7e7
+   :cyan-dim    0xccebbcba :cyan        0xffebbcba})
 
 (def magenta (:magenta theme))
 (def grey (:grey theme))
 (def grey-dim (:grey-dim theme))
+(def blue (:blue theme))
+(def blue-dim (:blue-dim theme))
 (def cyan (:cyan theme))
 (def cyan-dim (:cyan-dim theme))
+(def yellow (:yellow theme))
+(def yellow-dim (:yellow-dim theme))
 
 (def root-id 1)
 
 (def st (atom {:next-menu-id (inc root-id) :curr-id root-id}))
 
-(defn curr-menu [& args] (let [{:keys [menus curr-id]} (or (first args) @st)]
-                     (get menus curr-id)))
+(defn curr-menu [& args]
+  (let [{:keys [menus curr-id]} (or (first args) @st)]
+    (-> (get menus curr-id)
+        (update :entries #(or %1 []))
+        (update :cols #(or %1 [])))))
+
 (defn swap!-curr [f]
   (swap! st #(assoc-in %1 [:menus (:curr-id %1)] (f (curr-menu %1)))))
 
@@ -44,7 +44,9 @@
 
 (defn col! [] (swap!-curr #(update %1 :cols conj (count (:entries %1)))))
 
-(defn add-entry! [& entry] (swap!-curr #(update %1 :entries conj entry)))
+(defn add-entry! [etype keyspec desc & args]
+  (swap!-curr #(->> (apply vector etype keyspec desc args)
+                    (update %1 :entries conj))))
 
 (defn cmd! [keyspec desc exe] (add-entry! :cmd keyspec desc exe))
 
@@ -91,8 +93,7 @@
                                  'Title Title
                                  'Col Col
                                  'Cmd Cmd
-                                 'Sub Sub}})
-    (println @st)))
+                                 'Sub Sub}})))
 
 (def log-chan (chan))
 
@@ -100,7 +101,8 @@
 
 (defn to-zkg-sym [el]
   (cond
-    (vector? el) (str "(" (name (first el)) " " (str/join " " (map to-zkg-sym (last el))) ")")
+    (vector? el) (as-> (str/join " " (map to-zkg-sym (last el))) x
+                   (str "(" (name (first el)) " " x ")" ))
     (keyword? el) (str ":" (name el))
     :else (json/generate-string el)))
 
@@ -128,12 +130,36 @@
 
 (defn render-cols []
   (let [{:keys [entries cols]} (-menu)]
-    (loop [cols []
-           i 0
-           [e & erest :as eall]  entries
-           [nextc & crest :as call] cols]))
-  [(Rows :fill-contents :end "a" "bbb" "c")
-   (Rows :fill-contents :start "1" "222")])
+    (->> (loop [i 0
+                [[etype kspec raw-desc] & erest] entries
+                [nextc & crest :as curr-cols] cols
+                col-index 0
+                outs [[]]]
+           (let [newcol? (= i nextc)
+                 next-cols (if newcol? crest curr-cols)
+                 next-col-index (if newcol? (inc col-index) col-index)
+                 cmd? (= etype :cmd)
+                 desc-color (if cmd? blue yellow)
+                 base-desc ((if (vector? raw-desc) #(str/join " " %1) identity)
+                             raw-desc)
+                 desc (str (if cmd? "" "+") base-desc)
+                 entry {:k (Mkup :fg cyan (str kspec))
+                        :s (Mkup :fg grey "  ")
+                        :d (Mkup :fg desc-color desc)}
+                 next-outs (-> (if newcol? (conj outs []) outs)
+                               (update next-col-index conj entry))]
+             (if (empty? erest) next-outs
+               (recur (inc i) erest next-cols next-col-index next-outs))))
+         (map #(Cols (apply Rows :fill-contents :start (map :k %1))
+                     (apply Rows (map :s %1))
+                     (apply Rows :fill-contents :end (map :d %1))))
+
+         (interpose (Cols "  "))
+         reverse
+         (#(conj %1 (Cols " ")))
+         reverse
+         (#(conj %1 (Cols " ")))
+         (into []))))
 
 (defn render []
   (Rows :fg (:fg theme)
@@ -142,8 +168,8 @@
     (apply Cols :fill :around :fill-contents :end (render-cols))
     (Hr :fg grey-dim)
     (Cols :fill :between
-          (Mkup (Mkup :fg cyan-dim "Esc") " to quit ")
-          (Mkup "active")
+          (Mkup :fg grey (Mkup :fg cyan-dim " Esc") " to quit")
+          (Mkup "  active  ")
           "            ")))
 
 (defn handle [sys e]
@@ -152,27 +178,31 @@
     sys))
 
 (defn -main [& args]
+  (println (.XStringToKeysym X11/INSTANCE "F1"))
   (go (while true (apply println (<! log-chan))))
   (let [event-chan (chan)
         done-chan (chan)]
-    (go (let [zkg-proc (process bins/zkg)]
-          (go (with-open [rdr (io/reader (:out zkg-proc))]
-                (binding [*in* rdr]
-                  (loop []
-                    (when-let [l (try (read-line) (catch Exception _ false))]
-                      (let [[ks' etype' mods'] (str/split l #" ")
-                            ks (sci/eval-string ks')
-                            etype (sci/eval-string (str ":" etype'))
-                            mods (sci/eval-string mods')]
-                        (>! event-chan {:ks ks :etype etype :mods mods}))
-                      (recur))))))
+    #_(go (let [zkg-proc (process bins/zkg)]
+          (go (try
+                (with-open [rdr (io/reader (:out zkg-proc))]
+                  (binding [*in* rdr]
+                    (loop []
+                      (when-let [l (try (read-line) (catch Exception _ false))]
+                        (let [[ks' etype' mods'] (str/split l #" ")
+                              ks (sci/eval-string ks')
+                              etype (sci/eval-string (str ":" etype'))
+                              mods (sci/eval-string mods')]
+                          (>! event-chan {:ks ks :etype etype :mods mods}))
+                        (recur)))))
+                (catch Exception _ nil)))
           (go (let [data (try (deref zkg-proc) (catch Exception e {:err e}))]
                 (>! event-chan (merge data {:etype :kill}))))
           (<! done-chan)
           (destroy-tree zkg-proc)))
     (doseq [in-file args] (eval-file in-file))
     (println "preprocessing done. entering event loop")
-    (let [ztr-proc (process bins/ztr)
+    (println args)
+    #_(let [ztr-proc (process bins/ztr)
           ztr-in (io/writer (:in ztr-proc))]
       (binding [*out* ztr-in]
         (loop [sys {:menus (:menus @st) :active-id root-id}]
