@@ -20,10 +20,6 @@
           main-ns = "zkm.core";
           builder-extra-inputs = [zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.pkg-config];
           builder-preBuild = with pkgs; ''
-            rm -rf fakelib
-            mkdir -p fakelib
-            ln -s "${pkgs.xorg.libX11}/lib" fakelib/linux-x86-64
-            export LD_LIBRARY_PATH="fakelib"
             l1='(ns zkm.bins)'
             l2='(def zkg "${zkg-pkg}/bin/zkg")'
             l3='(def ztr "${ztr-pkg}/bin/ztr")'
@@ -36,16 +32,27 @@
         };
       in rec {
         packages.default = packages.zkm;
-        packages.zkm = buildZkmApp {
+        packages.zkm = pkgs.stdenv.mkDerivation {
+          pname = "zkm";
+          inherit version;
+          src = ./.;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          propagatedBuildInputs = [ packages.zkm-unwrapped pkgs.xorg.libX11 ];
+          dontBuild = true;
+          installPhase = with pkgs; ''
+            runHook preInstall
+            mkdir -p "$out/bin"
+            makeWrapper "${packages.zkm-unwrapped}/bin/zkm" "$out/bin/zkm" \
+              --prefix LD_LIBRARY_PATH : "${pkgs.xorg.libX11}/lib"
+            runHook postInstall
+          '';
+        };
+        packages.zkm-unwrapped = buildZkmApp {
           nativeImage.enable = true;
           nativeImage.extraNativeImageBuildArgs = [
             "--initialize-at-build-time"
             "-J-Dclojure.compiler.direct-linking=true"
             "--native-image-info"
-            # "--initialize-at-run-time=com.sun.jna.platform.unix.X11"
-            # "--initialize-at-run-time=com.sun.jna.Structure$FFIType"
-            # "--trace-object-instantiation=com.sun.jna.internal.Cleaner$CleanerThread"
-
             "--initialize-at-build-time"
             "--initialize-at-run-time=com.sun.jna"
             "--initialize-at-run-time=clojure.core.async.impl.concurrent__init"
@@ -78,7 +85,6 @@
             "--initialize-at-run-time=sci.impl.io__init"
             "--initialize-at-run-time=sci.impl.parser__init"
             "--initialize-at-run-time=sci.impl.namespaces__init"
-
             "-march=compatibility"
             "-H:+JNI"
             "-H:JNIConfigurationFiles=${./.}/.graal-support/jni.json"
@@ -125,7 +131,10 @@
             (defn md-out [l md]
               (spit (trace-filename (str l ".json")) (json/generate-string md)))
             (md-out "jni" (map #(rn-key %1 "type" "name") (get md "jni")))
-            (md-out "reflection" (map #(rn-key %1 "type" "name") (get md "reflection")))
+            (md-out "reflection"
+                    (->> (get md "reflection")
+                         (map #(rn-key %1 "type" "name"))
+                         (remove #(vector? (get %1 "name")))))
             (md-out "resources" {"globs" (get md "resources")})
             (println "trace data normalized. namaste and good luck =^)")
           ''
