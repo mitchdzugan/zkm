@@ -127,14 +127,19 @@
                         slurp
                         str/join
                         json/parse-string))
+            (def proxy-vec? #(vector? (get-in %1 ["type" "proxy"])))
             (def rn-key #(-> %1 (dissoc %2) (assoc %3 (get %1 %2))))
             (defn md-out [l md]
               (spit (trace-filename (str l ".json")) (json/generate-string md)))
             (md-out "jni" (map #(rn-key %1 "type" "name") (get md "jni")))
             (md-out "reflection"
                     (->> (get md "reflection")
-                         (map #(rn-key %1 "type" "name"))
-                         (remove #(vector? (get %1 "name")))))
+                         (remove proxy-vec?)
+                         (map #(rn-key %1 "type" "name"))))
+            (md-out "proxy"
+                    (->> (get md "reflection")
+                         (filter proxy-vec?)
+                         (map #(get-in %1 ["type" "proxy"]))))
             (md-out "resources" {"globs" (get md "resources")})
             (println "trace data normalized. namaste and good luck =^)")
           ''

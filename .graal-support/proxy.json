@@ -1,5 +1,1 @@
-[
-  ["com.sun.jna.Library"],
-  ["com.sun.jna.Callback"],
-  ["com.sun.jna.platform.unix.X11"]
-]
+[["com.sun.jna.platform.unix.X11"]]
