@@ -54,7 +54,21 @@
 
 (defn col! [] (swap!-curr #(update %1 :cols conj (count (:entries %1)))))
 
+(defn single? [c] (= 1 (count c)))
+
+(defn to-key-parts [keyspec]
+  (cond
+    (keyword? keyspec)      (to-key-parts (name keyspec))
+    (number? keyspec)       [nil (str keyspec)]
+    (and (vector? keyspec)
+         (single? keyspec)) [nil (first keyspec)]
+    (vector? keyspec)       [(nth keyspec 0 nil) (nth keyspec 1 nil)]
+    :else (let [chunked (str/split keyspec #":" 2)]
+            (if (single? chunked) [nil (first chunked)] chunked))))
+
 (defn add-entry! [etype keyspec desc & args]
+  (let [[modspec finkeyspec] (to-key-parts keyspec)]
+    (println [:modspec modspec :finkeyspec finkeyspec]))
   (swap!-curr #(->> (apply vector etype keyspec desc args)
                     (update %1 :entries conj))))
 
