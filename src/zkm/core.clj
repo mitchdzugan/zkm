@@ -9,13 +9,17 @@
  (:import (com.sun.jna.platform.unix X11))
  (:gen-class))
 
+(def log-chan (chan))
+
+(defn log [& args] (go (>! log-chan args)))
+
 (def theme
   {:bg          0xdd191724 :bg-full     0xff191724 :fg          0xffe0def4
    :fg-alt      0xffe0def4 :bg-alt      0xff403d52 :black       0xff2623aa
    :grey        0xff6e6a86 :grey-dim    0xaa6e6a86 :red         0xffeb6f92
-   :green       0xff31748f :yellow      0xfff6c177 :yellow-dim  0xccf6c177
-   :blue        0xff9ccfd8 :blue-dim    0xcc9ccfd8 :magenta     0xffc4a7e7
-   :cyan-dim    0xccebbcba :cyan        0xffebbcba})
+   :red-dim     0x66eb6f92 :green       0xff31748f :yellow      0xfff6c177
+   :yellow-dim  0xccf6c177 :blue        0xff9ccfd8 :blue-dim    0xcc9ccfd8
+   :magenta     0xffc4a7e7 :cyan-dim    0xccebbcba :cyan        0xffebbcba})
 
 (def magenta (:magenta theme))
 (def grey (:grey theme))
@@ -26,9 +30,15 @@
 (def cyan-dim (:cyan-dim theme))
 (def yellow (:yellow theme))
 (def yellow-dim (:yellow-dim theme))
+(def red (:red theme))
+(def red-dim (:red-dim theme))
 
-(def MODS {"c" "⌃" "a" "⎇" "s" "⇧" "m" "❖"})
-(defn keysym-of [name] (.XStringToKeysym X11/INSTANCE name))
+(def MODS {:c "⌃" :a "⎇" :s "⇧" :m "❖"})
+(def MOD_LIST [:m :c :a :s])
+
+(defn keysym-of [name]
+  (println name)
+  (.intValue (.XStringToKeysym X11/INSTANCE name)))
 
 (def shift? #{(keysym-of "Shift_L") (keysym-of "Shift_R")})
 (def ctrl? #{(keysym-of "Control_L") (keysym-of "Control_R")})
@@ -36,14 +46,22 @@
 (def meta? #{(keysym-of "Meta_L") (keysym-of "Super_L") (keysym-of "Hyper_L")
              (keysym-of "Meta_R") (keysym-of "Super_R") (keysym-of "Hyper_R")})
 
-
 (def root-id 1)
 
 (def st (atom {:next-menu-id (inc root-id) :curr-id root-id}))
 
+(defn mk-press-id ([ks] (mk-press-id ks #{})) ([ks mods] {:ks (int ks) :mods mods}))
+
+(defn mk-press-id-by-name
+  ([fin] (mk-press-id-by-name fin #{}))
+  ([fin mods] (mk-press-id (keysym-of (str fin)) mods)))
+
+(def backspace-press-id (mk-press-id-by-name "BackSpace"))
+
 (defn curr-menu [& args]
   (let [{:keys [menus curr-id]} (or (first args) @st)]
     (-> (get menus curr-id)
+        (update :binds #(or %1 {backspace-press-id (fn [_] [:back])}))
         (update :entries #(or %1 []))
         (update :cols #(or %1 [])))))
 
@@ -56,6 +74,37 @@
 
 (defn single? [c] (= 1 (count c)))
 
+(def finkey-remaps
+  (let [ucase (->> (range 26)
+                   (map #(-> [(str (char (+ %1 65)))
+                              {:m #{:s} :k (str (char (+ %1 97)))}]))
+                   (into {}))
+        snums (->> [[")" "parenright"]
+                    ["!" "exclam"]
+                    ["@" "at"]
+                    ["#" "numbersign"]
+                    ["$" "dollar"]
+                    ["%" "percent"]
+                    ["^" "asciicircum"]
+                    ["&" "ampersand"]
+                    ["*" "asterisk"]
+                    ["(" "parenleft"]
+                    ]
+                   (map-indexed (fn [n strs] {:n n :strs strs}))
+                   (mapcat #(map (fn [s] {:n (:n %1) :s s}) (:strs %1)))
+                   (map #(-> [(:s %1) {:m #{:s} :k (str (:n %1))}]))
+                   (into {}))]
+    (merge ucase
+           snums
+           {" " {:k "space"}
+            "." {:k "period"}
+            "," {:k "comma"}
+            "/" {:k "slash"}
+            "left" {:k "Left"}
+            "up" {:k "Up"}
+            "right" {:k "Right"}
+            "down" {:k "Down"}})))
+
 (defn to-key-parts [keyspec]
   (cond
     (keyword? keyspec)      (to-key-parts (name keyspec))
@@ -63,14 +112,22 @@
     (and (vector? keyspec)
          (single? keyspec)) [nil (first keyspec)]
     (vector? keyspec)       [(nth keyspec 0 nil) (nth keyspec 1 nil)]
-    :else (let [chunked (str/split keyspec #":" 2)]
-            (if (single? chunked) [nil (first chunked)] chunked))))
+    :else                   (let [spl (str/split keyspec #":" 2)]
+                              (if (single? spl) [nil (first spl)] spl))))
 
 (defn add-entry! [etype keyspec desc & args]
-  (let [[modspec finkeyspec] (to-key-parts keyspec)]
-    (println [:modspec modspec :finkeyspec finkeyspec]))
-  (swap!-curr #(->> (apply vector etype keyspec desc args)
-                    (update %1 :entries conj))))
+  (let [[modspec finkeyspec] (to-key-parts keyspec)
+        {modbase :m fin :k} (get finkey-remaps finkeyspec {:k finkeyspec})
+        mods (->> modspec
+                  (into [])
+                  (mapcat #(get {\c [:c] \a [:a] \s [:s] \m [:m]} %1 []))
+                  (reduce #(conj %1 %2) (or modbase #{})))
+        press-id (mk-press-id-by-name fin mods)]
+    (swap!-curr #(-> (->> (apply vector etype keyspec desc args)
+                          (update %1 :entries conj))
+                     (assoc-in [:binds press-id]
+                               (fn [entries]
+                                 (nth entries (count (:entries %1)))))))))
 
 (defn cmd! [keyspec desc exe] (add-entry! :cmd keyspec desc exe))
 
@@ -119,10 +176,6 @@
                                  'Cmd Cmd
                                  'Sub Sub}})))
 
-(def log-chan (chan))
-
-(defn log [& args] (go (>! log-chan args)))
-
 (defn to-zkg-sym [el]
   (cond
     (vector? el) (as-> (str/join " " (map to-zkg-sym (last el))) x
@@ -141,6 +194,10 @@
 (defn -active-id [] (:active-id *sys*))
 (defn -menu ([id] (get (-menus) id)) ([] (get (-menus) (-active-id))))
 (defn -root? [] (= root-id (-active-id)))
+(defn -active-mods [] (:active-mods *sys*))
+(defn bound-entry [sys press-id]
+  (let [{:keys [entries binds]} (get (:menus sys) (:active-id sys))]
+    ((get binds press-id (fn [_] nil)) entries)))
 
 (defn render-title []
   (->> (loop [active? true
@@ -152,24 +209,36 @@
            (if-let [parent (-menu parent-id)] (recur false next parent) next)))
        (apply Mkup)))
 
+(defn entry-type [[etype]] etype)
+
+(defmulti entry-color entry-type)
+(defmethod entry-color :cmd [_] blue)
+(defmethod entry-color :sub [_] yellow)
+
+(defmulti entry-prefix entry-type)
+(defmethod entry-prefix :cmd [_] "")
+(defmethod entry-prefix :sub [_] "+")
+
+(defn entry-desc-str [[_ _ d]] (if (sequential? d) (str/join " " d) d))
+(defn render-entry-desc [entry]
+  (->> (str (entry-prefix entry) (entry-desc-str entry))
+       (Mkup :fg (entry-color entry))))
+
+(defn render-entry-keyspec [[_ keyspec]] (Mkup :fg cyan (str keyspec)))
+
 (defn render-cols []
   (let [{:keys [entries cols]} (-menu)]
     (->> (loop [i 0
-                [[etype kspec raw-desc] & erest] entries
+                [entry & erest] entries
                 [nextc & crest :as curr-cols] cols
                 col-index 0
                 outs [[]]]
            (let [newcol? (= i nextc)
                  next-cols (if newcol? crest curr-cols)
                  next-col-index (if newcol? (inc col-index) col-index)
-                 cmd? (= etype :cmd)
-                 desc-color (if cmd? blue yellow)
-                 base-desc ((if (vector? raw-desc) #(str/join " " %1) identity)
-                             raw-desc)
-                 desc (str (if cmd? "" "+") base-desc)
-                 entry {:k (Mkup :fg cyan (str kspec))
+                 entry {:k (render-entry-keyspec entry)
                         :s (Mkup :fg grey "  ")
-                        :d (Mkup :fg desc-color desc)}
+                        :d (render-entry-desc entry)}
                  next-outs (-> (if newcol? (conj outs []) outs)
                                (update next-col-index conj entry))]
              (if (empty? erest) next-outs
@@ -185,6 +254,15 @@
          (#(conj %1 (Cols " ")))
          (into []))))
 
+(defn render-active-mods []
+  (let [active-mods (or (-active-mods) #{})]
+    (->> MOD_LIST
+         (map #(let [a? (active-mods %1)
+                     fg (if a? red red-dim)
+                     fs (if a? :bold :normal)]
+                 (Mkup :fg fg :font-style fs (get MODS %1))))
+         (apply Mkup))))
+
 (defn render []
   (Rows :fg (:fg theme)
     (Mkup :fill :center (render-title))
@@ -193,20 +271,41 @@
     (Hr :fg grey-dim)
     (Cols :fill :between
           (Mkup :fg grey (Mkup :fg cyan-dim " Esc") " to quit")
-          (Mkup "  active  ")
+          (render-active-mods)
           "            ")))
+
+(defn mods-set [mods]
+  (->> [{:k :s :n 0x001} {:k :c :n 0x004} {:k :a :n 0x008} {:k :m :n 0x040}]
+       (remove #(= 0 (bit-and mods (:n %1))))
+       (map :k)
+       (into #{})))
+
+(defn adjust-mods-for-current-event [mods ks press?]
+  (->> [{:k :s :p shift?} {:k :c :p ctrl?} {:k :a :p alt?} {:k :m :p meta?}]
+       (filter #((:p %1) ks))
+       (reduce #((if press? conj disj) %1 (:k %2)) mods)))
+
+(defn handle-press [sys ks raw-mods]
+  (let [mods (mods-set raw-mods)]
+    (log [:be (bound-entry sys (mk-press-id ks mods))])
+    (assoc sys :active-mods (adjust-mods-for-current-event mods ks true))))
+
+(defn handle-release [sys ks raw-mods]
+  (let [mods (mods-set raw-mods)]
+    (assoc sys :active-mods (adjust-mods-for-current-event mods ks false))))
 
 (defn handle [sys e]
   (case (:etype e)
     :kill nil
+    :press (handle-press sys (:ks e) (:mods e))
+    :release (handle-release sys (:ks e) (:mods e))
     sys))
 
 (defn -main [& args]
-  (println (.XStringToKeysym X11/INSTANCE "F1"))
   (go (while true (apply println (<! log-chan))))
   (let [event-chan (chan)
         done-chan (chan)]
-    #_(go (let [zkg-proc (process bins/zkg)]
+    (go (let [zkg-proc (process bins/zkg)]
           (go (try
                 (with-open [rdr (io/reader (:out zkg-proc))]
                   (binding [*in* rdr]
@@ -225,8 +324,7 @@
           (destroy-tree zkg-proc)))
     (doseq [in-file args] (eval-file in-file))
     (println "preprocessing done. entering event loop")
-    (println args)
-    #_(let [ztr-proc (process bins/ztr)
+    (let [ztr-proc (process bins/ztr)
           ztr-in (io/writer (:in ztr-proc))]
       (binding [*out* ztr-in]
         (loop [sys {:menus (:menus @st) :active-id root-id}]
