@@ -27,6 +27,16 @@
 (def yellow (:yellow theme))
 (def yellow-dim (:yellow-dim theme))
 
+(def MODS {"c" "⌃" "a" "⎇" "s" "⇧" "m" "❖"})
+(defn keysym-of [name] (.XStringToKeysym X11/INSTANCE name))
+
+(def shift? #{(keysym-of "Shift_L") (keysym-of "Shift_R")})
+(def ctrl? #{(keysym-of "Control_L") (keysym-of "Control_R")})
+(def alt? #{(keysym-of "Alt_L") (keysym-of "Alt_R")})
+(def meta? #{(keysym-of "Meta_L") (keysym-of "Super_L") (keysym-of "Hyper_L")
+             (keysym-of "Meta_R") (keysym-of "Super_R") (keysym-of "Hyper_R")})
+
+
 (def root-id 1)
 
 (def st (atom {:next-menu-id (inc root-id) :curr-id root-id}))

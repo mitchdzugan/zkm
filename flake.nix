@@ -20,6 +20,7 @@
           main-ns = "zkm.core";
           builder-extra-inputs = [zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.pkg-config];
           builder-preBuild = with pkgs; ''
+            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
             l1='(ns zkm.bins)'
             l2='(def zkg "${zkg-pkg}/bin/zkg")'
             l3='(def ztr "${ztr-pkg}/bin/ztr")'
@@ -99,6 +100,14 @@
             "-H:DashboardDump=target/dashboard-dump"
           ];
         };
+        packages.dev-run = zn.uuFlakeWrap (zn.writeBashScriptBin'
+          "dev-run"
+          [ zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.clojure ]
+          ''
+            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
+            "${pkgs.clojure}/bin/clj" -M -m zkm.core "$@"
+          ''
+        );
         packages.uberjar = buildZkmApp {};
         packages.trace-run = zn.uuFlakeWrap (zn.writeBashScriptBin'
           "trace-run"
