@@ -18,11 +18,15 @@
           projectSrc = ./.;
           name = "org.mitchdzugan/zkm";
           main-ns = "zkm.core";
-          builder-extra-inputs = [zkg-pkg ztr-pkg];
+          builder-extra-inputs = [zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.pkg-config];
           builder-preBuild = with pkgs; ''
+            rm -rf fakelib
+            mkdir -p fakelib
+            ln -s "${pkgs.xorg.libX11}/lib" fakelib/linux-x86-64
+            export LD_LIBRARY_PATH="fakelib"
             l1='(ns zkm.bins)'
-            l2='(def zkg "/${zkg-pkg}/bin/zkg")'
-            l3='(def ztr "/${ztr-pkg}/bin/ztr")'
+            l2='(def zkg "${zkg-pkg}/bin/zkg")'
+            l3='(def ztr "${ztr-pkg}/bin/ztr")'
             { echo "$l1"; echo "$l2"; echo "$l3"; } > src/zkm/bins.clj
           '';
         };
@@ -39,13 +43,24 @@
             "-J-Dclojure.compiler.direct-linking=true"
             "--native-image-info"
             "-march=compatibility"
+            # "--initialize-at-run-time=com.sun.jna.platform.unix.X11"
+            # "--initialize-at-run-time=com.sun.jna.Structure$FFIType"
+            # "--trace-object-instantiation=com.sun.jna.internal.Cleaner$CleanerThread"
+
+            "--initialize-at-build-time"
+						"--initialize-at-run-time=com.sun.jna"
+
+
             "-H:+JNI"
             "-H:JNIConfigurationFiles=${./.}/.graal-support/jni.json"
             "-H:ResourceConfigurationFiles=${./.}/.graal-support/resources.json"
+            "-H:ReflectionConfigurationFiles=${./.}/.graal-support/reflection.json"
+            "-H:DynamicProxyConfigurationFiles=${./.}/.graal-support/proxy.json"
             "-H:+ReportExceptionStackTraces"
             "--report-unsupported-elements-at-runtime"
             "--verbose"
-            "-Dskija.logLevel=DEBUG"
+            "-Djna.library.path=${pkgs.xorg.libX11}/lib"
+            "-H:CLibraryPath=${pkgs.xorg.libX11}/lib"
             "-H:DashboardDump=target/dashboard-dump"
           ];
         };
@@ -81,6 +96,7 @@
             (defn md-out [l md]
               (spit (trace-filename (str l ".json")) (json/generate-string md)))
             (md-out "jni" (map #(rn-key %1 "type" "name") (get md "jni")))
+            (md-out "reflection" (map #(rn-key %1 "type" "name") (get md "reflection")))
             (md-out "resources" {"globs" (get md "resources")})
             (println "trace data normalized. namaste and good luck =^)")
           ''
