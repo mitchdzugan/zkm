@@ -20,9 +20,11 @@
    :grey        0xff6e6a86 :grey-dim    0xaa6e6a86 :red         0xffeb6f92
    :red-dim     0x66eb6f92 :green       0xff31748f :yellow      0xfff6c177
    :yellow-dim  0xccf6c177 :blue        0xff9ccfd8 :blue-dim    0xcc9ccfd8
-   :magenta     0xffc4a7e7 :cyan-dim    0xccebbcba :cyan        0xffebbcba})
+   :magenta     0xffc4a7e7 :magenta-dim 0x99c4a7e7 :cyan-dim    0xccebbcba
+   :cyan        0xffebbcba})
 
 (def magenta (:magenta theme))
+(def magenta-dim (:magenta-dim theme))
 (def grey (:grey theme))
 (def grey-dim (:grey-dim theme))
 (def blue (:blue theme))
@@ -34,7 +36,7 @@
 (def red (:red theme))
 (def red-dim (:red-dim theme))
 
-(def MODS {:c "⌃" :a "⎇" :s "⇧" :m "❖"})
+(def MODS {:c "^" :a "⎇" :s "⇧" :m "❖"})
 (def MOD_LIST [:m :c :a :s])
 
 (defn keysym-of [name] (.intValue (.XStringToKeysym X11/INSTANCE name)))
@@ -204,9 +206,10 @@
               curr '()
               {:keys [title parent-id]} (-menu sys)]
          (let [fs (if active? :bold :normal)
-               fg (if active? magenta grey)
+               fg (if active? magenta magenta-dim)
                next (conj curr (Mkup :font-style fs :fg fg title))]
            (if-let [parent (-menu sys parent-id)] (recur false next parent) next)))
+       (interpose (Mkup :fg grey-dim " > "))
        (apply Mkup)))
 
 (defn entry-type [[etype] & _] etype)
@@ -275,16 +278,17 @@
          (apply Mkup))))
 
 (defn -render [sys]
-  ; (log [:aid (-curr-id)])
   (Rows :fg (:fg theme)
     (Mkup :fill :center (-render-title sys))
     (Hr :fg grey-dim)
     (apply Cols :fill :around :fill-contents :end (-render-cols sys))
     (Hr :fg grey-dim)
     (Cols :fill :between
-          (Mkup :fg grey (Mkup :fg cyan-dim " Esc") " to quit")
+          (Mkup :fg grey (Mkup :fg cyan-dim " Esc") " quit    ")
           (-render-active-mods sys)
-          "            ")))
+          (if (-root? sys)
+            "            "
+            (Mkup :fg grey (Mkup :fg cyan-dim "⌫") " prev menu")))))
 
 (defn mods-set [mods]
   (->> [{:k :s :n 0x001} {:k :c :n 0x004} {:k :a :n 0x008} {:k :m :n 0x040}]
@@ -299,7 +303,6 @@
 
 (defn -handle-press [sys ks raw-mods]
   (let [mods (mods-set raw-mods)]
-    ; (log [:be (bound-entry sys (mk-press-id ks mods))])
     (if-let [bound (-bound-entry sys (mk-press-id ks mods))]
       (entry-handle bound sys)
       (assoc sys :active-mods (adjust-mods-for-current-event mods ks true)))))
@@ -309,7 +312,6 @@
     (assoc sys :active-mods (adjust-mods-for-current-event mods ks false))))
 
 (defn -handle [sys e]
-  ; (println [:etype (:etype e)])
   (case (:etype e)
     :kill nil
     :press (-handle-press sys (:ks e) (:mods e))
@@ -318,9 +320,7 @@
 
 (defn -main [& args]
   (go (while true (apply println (<! log-chan))))
-  (let [event-chan (chan 100)
-        done-chan (chan)
-        render-chan (chan 100)]
+  (let [event-chan (chan 10) done-chan (chan) render-chan (chan 10)]
     (go (let [zkg-proc (process bins/zkg)]
           (go (try
                 (with-open [rdr (io/reader (:out zkg-proc))]
@@ -339,30 +339,13 @@
           (<! done-chan)
           (destroy-tree zkg-proc)))
     (doseq [in-file args] (eval-file in-file))
-    #_(println "preprocessing done. entering event loop")
-    #_(go (let [ztr-proc (process bins/ztr)
-              ztr-out (io/reader (:out ztr-proc))
+    (println "preprocessing done. entering event loop")
+    (go (let [ztr-proc (process bins/ztr)
               ztr-in (io/writer (:in ztr-proc))]
-          (binding [*in* ztr-out]
-            (while true
-              (read-line)
-              ; (Thread/sleep 1)
-              (let [n (<! render-chan)]
-                ; (println [:RENDER-NOW n])
-                (.write ztr-in (str n \newline)))
-              (.flush ztr-in)))
-      #_(try
-            (println [:ztpd (deref ztr-proc)])
-            (catch Exception e (println [:ztpe e])))
-      ))
+          (binding [*out* ztr-in] (while true (println (<! render-chan))))))
     (loop [sys {:menus (:menus @st) :curr-id root-id}]
-      #_(println (keys (:menus sys))
-               (:curr-id sys)
-               (-> sys :menus (get 2)))
       (let [render-str (str "(Render " (to-zkg-sym (-render sys)) ")")]
-        (println render-str)
         (>!! render-chan render-str)
         (let [next-sys (-handle sys (<!! event-chan))]
           (when next-sys (recur next-sys)))))
-    #_(println [:post-loop])
     (>!! done-chan true)))
