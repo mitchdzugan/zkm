@@ -365,39 +365,45 @@
     sys))
 
 (defn -main [& args]
-  (go (while true (apply println (<! log-chan))))
-  (let [event-chan (chan 10)
+  (let [zkg-proc (process bins/zkg)
+        ztr-proc (process bins/ztr)
+        force-closed #(try (destroy-tree %1) (catch Exception _ nil))
+        force-all-closed (fn [] (force-closed zkg-proc) (force-closed ztr-proc))
+        event-chan (chan 10)
         done-chan (chan)
         exe-chan (chan)
         render-chan (chan 10)]
-    (go (let [zkg-proc (process bins/zkg)]
-          (go (try
-                (with-open [rdr (io/reader (:out zkg-proc))]
-                  (binding [*in* rdr]
-                    (loop []
-                      (when-let [l (try (read-line) (catch Exception _ false))]
-                        (let [[ks' etype' mods'] (str/split l #" ")
-                              ks (sci/eval-string ks')
-                              etype (sci/eval-string (str ":" etype'))
-                              mods (sci/eval-string mods')]
-                          (>! event-chan {:ks ks :etype etype :mods mods}))
-                        (recur)))))
-                (catch Exception _ nil)))
-          (go (let [data (try (deref zkg-proc) (catch Exception e {:err e}))]
-                (>! event-chan (merge data {:etype :kill}))))
-          (let [{exe-user :exe} (<! exe-chan)
-                exe (cond
-                      (sequential? exe-user) (str/join " " exe-user)
-                      :else exe-user)
-                shell-opts {:continue true}]
-            (destroy-tree zkg-proc)
-            (if exe
-              (>! done-chan (:exit (shell shell-opts bins/bash "-lc" exe)))
-              (>! done-chan 1)))))
+    (go (while true (apply println (<! log-chan))))
+    (go (go (try
+           (with-open [rdr (io/reader (:out zkg-proc))]
+             (binding [*in* rdr]
+               (loop []
+                 (when-let [l (try (read-line) (catch Exception _ false))]
+                   (let [[ks' etype' mods'] (str/split l #" ")
+                         ks (sci/eval-string ks')
+                         etype (sci/eval-string (str ":" etype'))
+                         mods (sci/eval-string mods')]
+                     (>! event-chan {:ks ks :etype etype :mods mods}))
+                   (recur)))))
+           (catch Exception _ nil)))
+        (go (let [data (try (deref zkg-proc) (catch Exception e {:err e}))]
+              (>! event-chan (merge data {:etype :kill}))))
+        (let [{exe-user :exe} (<! exe-chan)
+              exe (cond (sequential? exe-user) (str/join " " exe-user)
+                        :else exe-user)
+              shell-opts {:continue true}]
+          (force-all-closed)
+          (if exe
+            (>! done-chan (:exit (shell shell-opts bins/bash "-lc" exe)))
+            (>! done-chan 1))))
     (doseq [in-file args] (eval-file in-file))
-    (go (let [ztr-proc (process bins/ztr)
-              ztr-in (io/writer (:in ztr-proc))]
-          (binding [*out* ztr-in] (while true (println (<! render-chan))))))
+    (go (let [ztr-in (io/writer (:in ztr-proc))]
+          (binding [*out* ztr-in]
+            (loop [to-render (<! render-chan)]
+              (println to-render)
+              (when (not= to-render "(Done)")
+                (recur (<! render-chan)))))
+          (force-all-closed)))
     (loop [sys {:menus (:menus @st) :curr-id root-id}]
       (let [render-str (str "(Render " (to-zkg-sym (-render sys)) ")")]
         (>!! render-chan render-str)
@@ -406,4 +412,7 @@
             (recur next-sys)
             (go (go (>! render-chan "(Done)"))
                 (>! exe-chan {:exe (:exe next-sys)}))))))
-    (System/exit (<!! done-chan))))
+    (let [exit-status (<!! done-chan)]
+      (force-all-closed)
+      (shutdown-agents)
+      (System/exit exit-status))))
