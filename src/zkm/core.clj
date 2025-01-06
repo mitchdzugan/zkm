@@ -385,8 +385,11 @@
                 (catch Exception _ nil)))
           (go (let [data (try (deref zkg-proc) (catch Exception e {:err e}))]
                 (>! event-chan (merge data {:etype :kill}))))
-          (let [shell-opts {:continue true}
-                {:keys [exe]} (<! exe-chan)]
+          (let [{exe-user :exe} (<! exe-chan)
+                exe (cond
+                      (sequential? exe-user) (str/join " " exe-user)
+                      :else exe-user)
+                shell-opts {:continue true}]
             (destroy-tree zkg-proc)
             (if exe
               (>! done-chan (:exit (shell shell-opts bins/bash "-lc" exe)))
