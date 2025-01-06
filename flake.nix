@@ -5,7 +5,7 @@
   inputs.zn-nix.url = "github:mitchdzugan/zn.nix";
   inputs.zn-nix.inputs.nixpkgs.follows = "nixpkgs";
   inputs.zkg.url = "github:mitchdzugan/zkg";
-  inputs.ztr.url = "path:/home/dz/Projects/ztr-clj";
+  inputs.ztr.url = "github:mitchdzugan/ztr";
   outputs = { self, nixpkgs, zn-nix, flake-utils, zkg, ztr, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
