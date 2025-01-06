@@ -18,13 +18,15 @@
           projectSrc = ./.;
           name = "org.mitchdzugan/zkm";
           main-ns = "zkm.core";
-          builder-extra-inputs = [zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.pkg-config];
+          builder-extra-inputs = [zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.bash];
           builder-preBuild = with pkgs; ''
             export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
             l1='(ns zkm.bins)'
             l2='(def zkg "${zkg-pkg}/bin/zkg")'
             l3='(def ztr "${ztr-pkg}/bin/ztr")'
-            { echo "$l1"; echo "$l2"; echo "$l3"; } > src/zkm/bins.clj
+            l4='(def bash "${pkgs.bash}/bin/bash")'
+            { echo "$l1"; echo "$l2"; echo "$l3"; echo "$l4"; } > bins.clj
+            mv bins.clj src/zkm/bins.clj
           '';
         };
         buildZkmApp = extraConfig: zn.mkCljApp {

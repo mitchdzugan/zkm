@@ -1,9 +1,10 @@
 (ns zkm.core
  (:require [clojure.string :as str]
+           [clojure.set :as set]
            [clojure.core.async :refer [go <! >! >!! <!! chan]]
            [clojure.java.io :as io]
            [sci.core :as sci]
-           [babashka.process :as p :refer [process destroy-tree]]
+           [babashka.process :as p :refer [process shell destroy-tree]]
            [cheshire.core :as json]
            [zkm.bins :as bins])
  (:import (java.io BufferedWriter)
@@ -19,8 +20,8 @@
    :fg-alt      0xffe0def4 :bg-alt      0xff403d52 :black       0xff2623aa
    :grey        0xff6e6a86 :grey-dim    0xaa6e6a86 :red         0xffeb6f92
    :red-dim     0x66eb6f92 :green       0xff31748f :yellow      0xfff6c177
-   :yellow-dim  0xccf6c177 :blue        0xff9ccfd8 :blue-dim    0xcc9ccfd8
-   :magenta     0xffc4a7e7 :magenta-dim 0x99c4a7e7 :cyan-dim    0xccebbcba
+   :yellow-dim  0x88f6c177 :blue        0xff9ccfd8 :blue-dim    0x889ccfd8
+   :magenta     0xffc4a7e7 :magenta-dim 0x99c4a7e7 :cyan-dim    0x88ebbcba
    :cyan        0xffebbcba})
 
 (def magenta (:magenta theme))
@@ -35,6 +36,24 @@
 (def yellow-dim (:yellow-dim theme))
 (def red (:red theme))
 (def red-dim (:red-dim theme))
+
+;const DISPLAY_NAMES = {
+;    left: '',
+;    up: '',
+;    right: '',
+;    down: '',
+;    tab: "⭾",
+;    return: "⏎",
+;    escape: "Esc",
+;    backspace: "⌫",
+;};
+
+(def DISPLAY_NAMES
+  {"left" ""
+   "up" ""
+   "right" ""
+   "down" ""
+   "tab" ""})
 
 (def MODS {:c "^" :a "⎇" :s "⇧" :m "❖"})
 (def MOD_LIST [:m :c :a :s])
@@ -119,12 +138,14 @@
 (defn add-entry! [etype keyspec desc & args]
   (let [[modspec finkeyspec] (to-key-parts keyspec)
         {modbase :m fin :k} (get finkey-remaps finkeyspec {:k finkeyspec})
-        mods (->> modspec
-                  (into [])
-                  (mapcat #(get {\c [:c] \a [:a] \s [:s] \m [:m]} %1 []))
-                  (reduce #(conj %1 %2) (or modbase #{})))
-        press-id (mk-press-id-by-name fin mods)]
-    (swap!-curr #(-> (->> (apply vector etype keyspec desc args)
+        modvisible (->> modspec
+                        (into [])
+                        (mapcat #(get {\c [:c] \a [:a] \s [:s] \m [:m]} %1 []))
+                        (reduce #(conj %1 %2) #{}))
+        mods (set/union modvisible modbase)
+        press-id (mk-press-id-by-name fin mods)
+        keyspec-display {:modvisible modvisible :mods mods :finkey finkeyspec}]
+    (swap!-curr #(-> (->> (apply vector etype keyspec-display desc args)
                           (update %1 :entries conj))
                      (assoc-in [:binds press-id]
                                (fn [entries]
@@ -215,16 +236,15 @@
 (defn entry-type [[etype] & _] etype)
 
 (defmulti entry-color entry-type)
-(defmethod entry-color :cmd [_] blue)
-(defmethod entry-color :sub [_] yellow)
+(defmethod entry-color :cmd [_ p?] (if p? blue blue-dim))
+(defmethod entry-color :sub [_ p?] (if p? yellow yellow-dim))
 
 (defmulti entry-prefix entry-type)
 (defmethod entry-prefix :cmd [_] "")
 (defmethod entry-prefix :sub [_] "+")
 
 (defmulti entry-handle entry-type)
-(defmethod entry-handle :cmd [entry sys]
-  sys)
+(defmethod entry-handle :cmd [[_ _ _ exe] sys] (assoc sys :exe exe))
 (defmethod entry-handle :sub [[_ _ _ submenu-id] sys]
   (assoc sys :curr-id submenu-id))
 (defmethod entry-handle :back [_ sys]
@@ -233,12 +253,45 @@
     (assoc sys :curr-id
            (get curr :parent-id curr-id))))
 
-(defn entry-desc-str [[_ _ d]] (if (sequential? d) (str/join " " d) d))
-(defn render-entry-desc [entry]
-  (->> (str (entry-prefix entry) (entry-desc-str entry))
-       (Mkup :fg (entry-color entry))))
+(defn -entry-possible? [sys [_ {:keys [mods]}]]
+  (let [active-mods (or (-active-mods sys) #{})]
+   (every? #(mods %1) active-mods)))
 
-(defn render-entry-keyspec [[_ keyspec]] (Mkup :fg cyan (str keyspec)))
+(defn entry-desc-str [[_ _ d]] (if (sequential? d) (str/join " " d) d))
+
+(defn -render-entry-desc [sys entry]
+  (let [poss? (-entry-possible? sys entry)]
+    (->> (str (entry-prefix entry) (entry-desc-str entry))
+         (Mkup :fg (entry-color entry poss?)))))
+
+(defn -render-active-mods [sys]
+  (let [active-mods (or (-active-mods sys) #{})]
+    (->> MOD_LIST
+         (map #(let [a? (active-mods %1)
+                     fg (if a? red red-dim)
+                     fs (if a? :bold :normal)]
+                 (Mkup :fg fg :font-style fs (get MODS %1))))
+         (apply Mkup))))
+
+
+(defn -render-entry-keyspec [sys [_ {:keys [modvisible finkey]} :as entry]]
+  (let [active-mods (or (-active-mods sys) #{})
+        active? #(active-mods %1)
+        poss? (-entry-possible? sys entry)
+        finkey-color (if poss? cyan cyan-dim)]
+    (Mkup
+      (->> MOD_LIST
+           (remove #(modvisible %1))
+           (map #(Mkup :fg 0x00000000 (get MODS %1)))
+           (apply Mkup))
+      (->> MOD_LIST
+           (filter #(modvisible %1))
+           (map #(Mkup :fg (if poss? red red-dim)
+                       :font-style (if (and poss? (active? %1)) :bold :normal)
+                       (get MODS %1)))
+           (apply Mkup))
+      (Mkup :fg finkey-color
+            (str (get DISPLAY_NAMES finkey finkey))))))
 
 (defn -render-cols [sys]
   (let [{:keys [entries cols]} (-menu sys)]
@@ -250,9 +303,9 @@
            (let [newcol? (= i nextc)
                  next-cols (if newcol? crest curr-cols)
                  next-col-index (if newcol? (inc col-index) col-index)
-                 entry {:k (render-entry-keyspec entry)
+                 entry {:k (-render-entry-keyspec sys entry)
                         :s (Mkup :fg grey "  ")
-                        :d (render-entry-desc entry)}
+                        :d (-render-entry-desc sys entry)}
                  next-outs (-> (if newcol? (conj outs []) outs)
                                (update next-col-index conj entry))]
              (if (empty? erest) next-outs
@@ -268,15 +321,6 @@
          (#(conj %1 (Cols " ")))
          (into []))))
 
-(defn -render-active-mods [sys]
-  (let [active-mods (or (-active-mods sys) #{})]
-    (->> MOD_LIST
-         (map #(let [a? (active-mods %1)
-                     fg (if a? red red-dim)
-                     fs (if a? :bold :normal)]
-                 (Mkup :fg fg :font-style fs (get MODS %1))))
-         (apply Mkup))))
-
 (defn -render [sys]
   (Rows :fg (:fg theme)
     (Mkup :fill :center (-render-title sys))
@@ -284,11 +328,11 @@
     (apply Cols :fill :around :fill-contents :end (-render-cols sys))
     (Hr :fg grey-dim)
     (Cols :fill :between
-          (Mkup :fg grey (Mkup :fg cyan-dim " Esc") " quit    ")
+          (Mkup :fg grey (Mkup :fg cyan " Esc") " quit    ")
           (-render-active-mods sys)
           (if (-root? sys)
             "            "
-            (Mkup :fg grey (Mkup :fg cyan-dim "⌫") " prev menu")))))
+            (Mkup :fg grey (Mkup :fg cyan "⌫") " prev menu")))))
 
 (defn mods-set [mods]
   (->> [{:k :s :n 0x001} {:k :c :n 0x004} {:k :a :n 0x008} {:k :m :n 0x040}]
@@ -302,10 +346,12 @@
        (reduce #((if press? conj disj) %1 (:k %2)) mods)))
 
 (defn -handle-press [sys ks raw-mods]
-  (let [mods (mods-set raw-mods)]
+  (let [mods (mods-set raw-mods)
+        active-mods (adjust-mods-for-current-event mods ks true)
+        sys' (assoc sys :active-mods active-mods)]
     (if-let [bound (-bound-entry sys (mk-press-id ks mods))]
-      (entry-handle bound sys)
-      (assoc sys :active-mods (adjust-mods-for-current-event mods ks true)))))
+      (entry-handle bound sys')
+      sys')))
 
 (defn -handle-release [sys ks raw-mods]
   (let [mods (mods-set raw-mods)]
@@ -320,7 +366,10 @@
 
 (defn -main [& args]
   (go (while true (apply println (<! log-chan))))
-  (let [event-chan (chan 10) done-chan (chan) render-chan (chan 10)]
+  (let [event-chan (chan 10)
+        done-chan (chan)
+        exe-chan (chan)
+        render-chan (chan 10)]
     (go (let [zkg-proc (process bins/zkg)]
           (go (try
                 (with-open [rdr (io/reader (:out zkg-proc))]
@@ -336,10 +385,13 @@
                 (catch Exception _ nil)))
           (go (let [data (try (deref zkg-proc) (catch Exception e {:err e}))]
                 (>! event-chan (merge data {:etype :kill}))))
-          (<! done-chan)
-          (destroy-tree zkg-proc)))
+          (let [shell-opts {:continue true}
+                {:keys [exe]} (<! exe-chan)]
+            (destroy-tree zkg-proc)
+            (if exe
+              (>! done-chan (:exit (shell shell-opts bins/bash "-lc" exe)))
+              (>! done-chan 1)))))
     (doseq [in-file args] (eval-file in-file))
-    (println "preprocessing done. entering event loop")
     (go (let [ztr-proc (process bins/ztr)
               ztr-in (io/writer (:in ztr-proc))]
           (binding [*out* ztr-in] (while true (println (<! render-chan))))))
@@ -347,5 +399,8 @@
       (let [render-str (str "(Render " (to-zkg-sym (-render sys)) ")")]
         (>!! render-chan render-str)
         (let [next-sys (-handle sys (<!! event-chan))]
-          (when next-sys (recur next-sys)))))
-    (>!! done-chan true)))
+          (if (and next-sys (nil? (:exe next-sys)))
+            (recur next-sys)
+            (go (go (>! render-chan "(Done)"))
+                (>! exe-chan {:exe (:exe next-sys)}))))))
+    (System/exit (<!! done-chan))))
