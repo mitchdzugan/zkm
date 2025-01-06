@@ -903,11 +903,11 @@
         "rep": "rep_2"
       },
       "locked": {
-        "lastModified": 1735842410,
-        "narHash": "sha256-8/HMEY+hP2HNeTnnZ6udLgZrO5yHrpxEgfxpgZLkjCQ=",
+        "lastModified": 1736180936,
+        "narHash": "sha256-daEyH7n1fS2QpvfGsMXIPnAqNWiVEhhe9hwbJdZdgMM=",
         "owner": "mitchdzugan",
         "repo": "zn.nix",
-        "rev": "4416b0898169a07ce3c867dc36cc3ee6cfe215ba",
+        "rev": "53302b239347b95c2d207c2aaabc6957fce7fd0b",
         "type": "github"
       },
       "original": {
@@ -947,11 +947,11 @@
         "zn-nix": "zn-nix_3"
       },
       "locked": {
-        "lastModified": 1736147488,
-        "narHash": "sha256-mm0WjAm62TT0zGKnmLO1kFSKtSrnDj6v+ZgUVVOLqew=",
+        "lastModified": 1736189762,
+        "narHash": "sha256-ls0vQkv0RZzM7A/6Wrt5wBHzbwfy5xQd7FciR3jgErg=",
         "owner": "mitchdzugan",
         "repo": "ztr",
-        "rev": "f107f4cb76e80986bd4f97893ea17fdc1c616956",
+        "rev": "01dafbc0728dcacd9142e7edb60a170289ebc219",
         "type": "github"
       },
       "original": {
