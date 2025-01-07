@@ -37,23 +37,13 @@
 (def red (:red theme))
 (def red-dim (:red-dim theme))
 
-;const DISPLAY_NAMES = {
-;    left: '',
-;    up: '',
-;    right: '',
-;    down: '',
-;    tab: "⭾",
-;    return: "⏎",
-;    escape: "Esc",
-;    backspace: "⌫",
-;};
-
 (def DISPLAY_NAMES
-  {"left" ""
-   "up" ""
-   "right" ""
-   "down" ""
-   "tab" ""})
+  {"left"   ""
+   "up"     ""
+   "right"  ""
+   "down"   ""
+   "tab"    ""
+   "return" "↩"})
 
 (def MODS {:c "^" :a "⎇" :s "⇧" :m "❖"})
 (def MOD_LIST [:m :c :a :s])
@@ -120,6 +110,7 @@
             "." {:k "period"}
             "," {:k "comma"}
             "/" {:k "slash"}
+            "return" {:k "Return"}
             "left" {:k "Left"}
             "up" {:k "Up"}
             "right" {:k "Right"}
