@@ -310,6 +310,20 @@
                                (update next-col-index conj entry))]
              (if (empty? erest) next-outs
                (recur (inc i) erest next-cols next-col-index next-outs))))
+         ; TODO remove this
+         ; TODO   this is a hack to ensure all cols have the unicode
+         ; TODO   mod keys rendered even if invisble since they are not
+         ; TODO   properly rendering monospace
+         ((fn [cols]
+            (let [max-len (reduce #(max %1 (count %2)) 0 cols)
+                  Inv #(Mkup :fg 0x00000000 %1)]
+              (-> (fn [col]
+                    (->> (range (- max-len (count col)))
+                         (map (fn [_] {:k (Inv (str/join "" (vals MODS)))
+                                       :s (Inv "")
+                                       :d (Inv " ")}))
+                         (concat col)))
+                  (map cols)))))
          (map #(Cols (apply Rows :fill-contents :start (map :k %1))
                      (apply Rows (map :s %1))
                      (apply Rows :fill-contents :end (map :d %1))))
