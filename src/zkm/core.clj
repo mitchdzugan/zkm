@@ -147,6 +147,13 @@
         keyspec-display {:modvisible modvisible :mods mods :finkey finkeyspec}]
     (swap!-curr #(-> (->> (apply vector etype keyspec-display desc args)
                           (update %1 :entries conj))
+                     ((fn [curr]
+                        (->> ["[" modspec " " finkeyspec "] bind already used"]
+                             (apply str)
+                             Exception.
+                             throw
+                             (when-not (nil? (get-in curr [:binds press-id]))))
+                        curr))
                      (assoc-in [:binds press-id]
                                (fn [entries]
                                  (nth entries (count (:entries %1)))))))))
