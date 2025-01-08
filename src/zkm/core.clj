@@ -36,6 +36,7 @@
 (def yellow-dim (:yellow-dim theme))
 (def red (:red theme))
 (def red-dim (:red-dim theme))
+(def bg-alt (:bg-alt theme))
 
 (def DISPLAY_NAMES
   {"left"   ""
@@ -135,7 +136,10 @@
                         (reduce #(conj %1 %2) #{}))
         mods (set/union modvisible modbase)
         press-id (mk-press-id-by-name fin mods)
-        keyspec-display {:modvisible modvisible :mods mods :finkey finkeyspec}]
+        keyspec-display {:modvisible modvisible
+                         :mods mods
+                         :finkey finkeyspec
+                         :press-id press-id}]
     (swap!-curr #(-> (->> (apply vector etype keyspec-display desc args)
                           (update %1 :entries conj))
                      ((fn [curr]
@@ -251,16 +255,22 @@
     (assoc sys :curr-id
            (get curr :parent-id curr-id))))
 
-(defn -entry-possible? [sys [_ {:keys [mods]}]]
-  (let [active-mods (or (-active-mods sys) #{})]
-   (every? #(mods %1) active-mods)))
+(defn -entry-pressed? [sys [_ {:keys [press-id]}]] (= press-id (:pressed sys)))
+
+(defn -entry-bg [sys entry] (if (-entry-pressed? sys entry) bg-alt 0x00000000))
+
+(defn -entry-possible? [sys [_ {:keys [mods press-id]}]]
+  (let [pressed (:pressed sys)
+        active-mods (or (-active-mods sys) #{})]
+   (and (or (nil? pressed) (= pressed press-id))
+        (every? #(mods %1) active-mods))))
 
 (defn entry-desc-str [[_ _ d]] (if (sequential? d) (str/join " " d) d))
 
 (defn -render-entry-desc [sys entry]
   (let [poss? (-entry-possible? sys entry)]
     (->> (str (entry-prefix entry) (entry-desc-str entry))
-         (Mkup :fg (entry-color entry poss?)))))
+         (Mkup :bg (-entry-bg sys entry) :fg (entry-color entry poss?)))))
 
 (defn -render-active-mods [sys]
   (let [active-mods (or (-active-mods sys) #{})]
@@ -288,7 +298,7 @@
                        :font-style (if (and poss? (active? %1)) :bold :normal)
                        (get MODS %1)))
            (apply Mkup))
-      (Mkup :fg finkey-color
+      (Mkup :bg (-entry-bg sys entry) :fg finkey-color
             (str (get DISPLAY_NAMES finkey finkey))))))
 
 (defn -render-cols [sys]
@@ -302,7 +312,7 @@
                  next-cols (if newcol? crest curr-cols)
                  next-col-index (if newcol? (inc col-index) col-index)
                  entry {:k (-render-entry-keyspec sys entry)
-                        :s (Mkup :fg grey "  ")
+                        :s (Mkup :bg (-entry-bg sys entry) :fg grey "  ")
                         :d (-render-entry-desc sys entry)}
                  next-outs (-> (if newcol? (conj outs []) outs)
                                (update next-col-index conj entry))]
@@ -360,8 +370,9 @@
 (defn -handle-press [sys ks raw-mods]
   (let [mods (mods-set raw-mods)
         active-mods (adjust-mods-for-current-event mods ks true)
-        sys' (assoc sys :active-mods active-mods)]
-    (if-let [bound (-bound-entry sys (mk-press-id ks mods))]
+        press-id (mk-press-id ks mods)
+        sys' (-> sys (assoc :active-mods active-mods :press-id press-id))]
+    (if-let [bound (-bound-entry sys press-id)]
       (entry-handle bound sys')
       sys')))
 
@@ -404,7 +415,7 @@
               exe (cond (sequential? exe-user) (str/join " " exe-user)
                         :else exe-user)
               shell-opts {:continue true}]
-          (force-all-closed)
+          (force-closed zkg-proc)
           (if exe
             (>! done-chan (:exit (shell shell-opts bins/bash "-lc" exe)))
             (>! done-chan 1))))
@@ -417,12 +428,22 @@
                 (recur (<! render-chan)))))
           (force-all-closed)))
     (loop [sys {:menus (:menus @st) :curr-id root-id}]
-      (let [render-str (str "(Render " (to-zkg-sym (-render sys)) ")")]
+      (let [sys-render-str #(str "(Render " (to-zkg-sym (-render %1)) ")")
+            render-str (sys-render-str sys)]
         (>!! render-chan render-str)
-        (let [next-sys (-handle sys (<!! event-chan))]
+        (let [{:keys [press-id] :as next-sys} (-handle sys (<!! event-chan))]
+          (when (and (not (nil? (:curr-id next-sys)))
+                     (not= (:curr-id next-sys) (:curr-id sys)))
+            (->> (sys-render-str (assoc sys :pressed press-id))
+                 (>!! render-chan))
+            (Thread/sleep 160))
           (if (and next-sys (nil? (:exe next-sys)))
             (recur next-sys)
-            (go (go (>! render-chan "(Done)"))
+            (go (go
+                  (->> (sys-render-str (assoc sys :pressed press-id))
+                       (>!! render-chan))
+                  (Thread/sleep 160)
+                  (>! render-chan "(Done)"))
                 (>! exe-chan {:exe (:exe next-sys)}))))))
     (let [exit-status (<!! done-chan)]
       (force-all-closed)
