@@ -436,13 +436,13 @@
                      (not= (:curr-id next-sys) (:curr-id sys)))
             (->> (sys-render-str (assoc sys :pressed press-id))
                  (>!! render-chan))
-            (Thread/sleep 160))
+            (Thread/sleep 270))
           (if (and next-sys (nil? (:exe next-sys)))
             (recur next-sys)
             (go (go
                   (->> (sys-render-str (assoc sys :pressed press-id))
                        (>!! render-chan))
-                  (Thread/sleep 160)
+                  (Thread/sleep 270)
                   (>! render-chan "(Done)"))
                 (>! exe-chan {:exe (:exe next-sys)}))))))
     (let [exit-status (<!! done-chan)]
