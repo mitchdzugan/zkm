@@ -52,6 +52,7 @@
         };
         packages.zkm-unwrapped = buildZkmApp {
           nativeImage.enable = true;
+          nativeImage.graalvm = pkgs.graalvmPackages.graalvm-ce;
           nativeImage.extraNativeImageBuildArgs = [
             "--initialize-at-build-time"
             "-J-Dclojure.compiler.direct-linking=true"
@@ -113,12 +114,12 @@
         packages.uberjar = buildZkmApp {};
         packages.trace-run = zn.uuFlakeWrap (zn.writeBashScriptBin'
           "trace-run"
-          [ zkg-pkg ztr-pkg packages.uberjar pkgs.graalvm-ce pkgs.xorg.libX11 ]
+          [ zkg-pkg ztr-pkg packages.uberjar pkgs.graalvmPackages.graalvm-ce pkgs.xorg.libX11 ]
           ''
             export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
             gvmh="$GRAALVM_HOME"
             if [ ! -f "$gmvh/bin/java" ]; then
-              gmvh="${pkgs.graalvm-ce}"
+              gmvh="${pkgs.graalvmPackages.graalvm-ce}"
             fi
             jar_path=$(cat "${packages.uberjar}/nix-support/jar-path")
             $gmvh/bin/java \
