@@ -506,11 +506,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1765472234,
-        "narHash": "sha256-9VvC20PJPsleGMewwcWYKGzDIyjckEz8uWmT0vCDYK0=",
+        "lastModified": 1769461804,
+        "narHash": "sha256-msG8SU5WsBUfVVa/9RPLaymvi5bI8edTavbIq3vRlhI=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+        "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
         "type": "github"
       },
       "original": {
@@ -907,11 +907,11 @@
         "rep": "rep_2"
       },
       "locked": {
-        "lastModified": 1765786699,
-        "narHash": "sha256-q7KSGjgnNCf17KB5Vj/N7UvK0iW5Y3vN3YhYRN3f/SY=",
+        "lastModified": 1765793298,
+        "narHash": "sha256-mN5/xRmwgiYxVb+IQLuCfdOT+RlhWMNLQ7PPColou3c=",
         "owner": "mitchdzugan",
         "repo": "zn.nix",
-        "rev": "3b18f292e6d317a27fed40be9c666d94f56c838d",
+        "rev": "eea010bab735ab43e685b98769d153494c0fa73d",
         "type": "github"
       },
       "original": {
@@ -951,11 +951,11 @@
         "zn-nix": "zn-nix_3"
       },
       "locked": {
-        "lastModified": 1765786737,
-        "narHash": "sha256-qnmV/E2RYue7ecz2EUL+5lDbiyJVawIlZ7fYaS/C+6A=",
+        "lastModified": 1769794635,
+        "narHash": "sha256-1jipSEUy8/HrNlF8iE9sg+2TeAeJJoCI7OGNsZxYTys=",
         "owner": "mitchdzugan",
         "repo": "ztr",
-        "rev": "e92941062d4d722635a0a63d9dad5f3d793c954c",
+        "rev": "91e75cfc5106f9eb6cf692f08f51657d8b5f3593",
         "type": "github"
       },
       "original": {
