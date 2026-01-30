@@ -16,7 +16,7 @@
 (defn log [& args] (go (>! log-chan args)))
 
 (def theme
-  {:bg          0xdd191724 :bg-full     0xff191724 :fg          0xffe0def4
+  {:bg          0xff191724 :bg-full     0xff191724 :fg          0xffe0def4
    :fg-alt      0xffe0def4 :bg-alt      0xff403d52 :black       0xff2623aa
    :grey        0xff6e6a86 :grey-dim    0xaa6e6a86 :red         0xffeb6f92
    :red-dim     0x66eb6f92 :green       0xff31748f :yellow      0xfff6c177
