@@ -89,6 +89,7 @@
             "--initialize-at-run-time=sci.impl.io__init"
             "--initialize-at-run-time=sci.impl.parser__init"
             "--initialize-at-run-time=sci.impl.namespaces__init"
+            "--initialize-at-run-time=sci.impl.records__init"
             "-march=compatibility"
             "-H:+JNI"
             "-H:JNIConfigurationFiles=${./.}/.graal-support/jni.json"
