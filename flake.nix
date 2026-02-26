@@ -18,9 +18,9 @@
           projectSrc = ./.;
           name = "org.mitchdzugan/zkm";
           main-ns = "zkm.core";
-          builder-extra-inputs = [zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.bash];
+          builder-extra-inputs = [zkg-pkg ztr-pkg pkgs.libx11 pkgs.bash];
           builder-preBuild = with pkgs; ''
-            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
+            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.libx11]}"
             l1='(ns zkm.bins)'
             l2='(def zkg "${zkg-pkg}/bin/zkg")'
             l3='(def ztr "${ztr-pkg}/bin/ztr")'
@@ -40,13 +40,13 @@
           inherit version;
           src = ./.;
           nativeBuildInputs = [ pkgs.makeWrapper ];
-          propagatedBuildInputs = [ packages.zkm-unwrapped pkgs.xorg.libX11 ];
+          propagatedBuildInputs = [ packages.zkm-unwrapped pkgs.libx11 ];
           dontBuild = true;
           installPhase = with pkgs; ''
             runHook preInstall
             mkdir -p "$out/bin"
             makeWrapper "${packages.zkm-unwrapped}/bin/zkm" "$out/bin/zkm" \
-              --prefix LD_LIBRARY_PATH : "${pkgs.xorg.libX11}/lib"
+              --prefix LD_LIBRARY_PATH : "${pkgs.libx11}/lib"
             runHook postInstall
           '';
         };
@@ -99,25 +99,25 @@
             "-H:+ReportExceptionStackTraces"
             "--report-unsupported-elements-at-runtime"
             "--verbose"
-            "-Djna.library.path=${pkgs.xorg.libX11}/lib"
-            "-H:CLibraryPath=${pkgs.xorg.libX11}/lib"
+            "-Djna.library.path=${pkgs.libx11}/lib"
+            "-H:CLibraryPath=${pkgs.libx11}/lib"
             "-H:DashboardDump=target/dashboard-dump"
           ];
         };
         packages.dev-run = zn.uuFlakeWrap (zn.writeBashScriptBin'
           "dev-run"
-          [ zkg-pkg ztr-pkg pkgs.xorg.libX11 pkgs.clojure ]
+          [ zkg-pkg ztr-pkg pkgs.libx11 pkgs.clojure ]
           ''
-            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
+            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.libx11]}"
             "${pkgs.clojure}/bin/clj" -M -m zkm.core "$@"
           ''
         );
         packages.uberjar = buildZkmApp {};
         packages.trace-run = zn.uuFlakeWrap (zn.writeBashScriptBin'
           "trace-run"
-          [ zkg-pkg ztr-pkg packages.uberjar pkgs.graalvmPackages.graalvm-ce pkgs.xorg.libX11 ]
+          [ zkg-pkg ztr-pkg packages.uberjar pkgs.graalvmPackages.graalvm-ce pkgs.libx11 ]
           ''
-            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.xorg.libX11]}"
+            export LD_LIBRARY_PATH="${zn.mkLibPath [pkgs.libx11]}"
             gvmh="$GRAALVM_HOME"
             if [ ! -f "$gmvh/bin/java" ]; then
               gmvh="${pkgs.graalvmPackages.graalvm-ce}"

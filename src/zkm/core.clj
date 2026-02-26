@@ -44,7 +44,8 @@
    "right"  ""
    "down"   ""
    "tab"    ""
-   "return" "↩"})
+   "return" "↩"
+   "minus" "-"})
 
 (def MODS {:c "^" :a "⎇" :s "⇧" :m "❖"})
 (def MOD_LIST [:m :c :a :s])
