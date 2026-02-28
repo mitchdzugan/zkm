@@ -75,6 +75,7 @@
             "--initialize-at-run-time=clojure.reflect.java__init"
             "--initialize-at-run-time=clojure.tools.analyzer.jvm.utils__init"
             "--initialize-at-run-time=clojure.tools.reader__init"
+            "--initialize-at-run-time=clojure.tools.reader.edn__init"
             "--initialize-at-run-time=edamame.impl.parser__init"
             "--initialize-at-run-time=sci.core__init"
             "--initialize-at-run-time=sci.impl.analyzer__init"
