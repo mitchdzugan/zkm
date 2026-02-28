@@ -45,6 +45,7 @@
    "down"   ""
    "tab"    ""
    "return" "↩"
+   "grave" "`"
    "minus" "-"})
 
 (def MODS {:c "^" :a "⎇" :s "⇧" :m "❖"})
