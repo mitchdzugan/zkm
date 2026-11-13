@@ -9,7 +9,8 @@
   outputs = { self, nixpkgs, zn-nix, flake-utils, zkg, ztr, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        version = builtins.substring 0 8 self.lastModifiedDate;
+        lastModDate = self.lastModifiedDate or self.lastModified or "19700101";
+        version = builtins.substring 0 8 lastModDate;
         pkgs = nixpkgs.legacyPackages.${system};
         zn = zn-nix.mk-zn system;
         zkg-pkg = zkg.packages.${system}.default;
